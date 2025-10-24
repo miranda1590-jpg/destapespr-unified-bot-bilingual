@@ -1,0 +1,36 @@
+{
+  "name": "destapespr-unified-bot-bilingual",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "bot": "node bot.js",
+    "start:all": "sh ./scripts/start-bot.sh",
+  "test": "node test/run-tests.js && jest --coverage --runInBand",
+  "lint": "eslint . --ext .js"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "prepare": "husky install",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "twilio": "^5.10.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "eslint": "^8.50.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.1.0"
+  ,
+    "jest": "^29.7.0",
+    "supertest": "^6.4.0"
+  }
+}
