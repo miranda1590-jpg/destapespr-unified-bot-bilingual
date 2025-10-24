@@ -29,20 +29,9 @@ jobs:
         run: npm ci
       - name: Audit dependencies
         run: npm audit --audit-level=moderate
-      - name: Ensure required env vars (fail early)
-        run: |
-          required=(TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_WHATSAPP_NUMBER)
-          missing=()
-          for v in "${required[@]}"; do
-            if [ -z "${{ secrets.${v} }}" ] && [ -z "${!v}" ]; then
-              missing+=("$v")
-            fi
-          done
-          if [ ${#missing[@]} -ne 0 ]; then
-            echo "Missing required secrets: ${missing[*]}";
-            echo "Set GitHub secrets or ensure env vars are provided for CI";
-            exit 1;
-          fi
+      # Note: unit tests and lint do NOT require Twilio secrets. Integration
+      # tests that perform live Twilio sends are run in a separate job that
+      # only executes when the required secrets are configured in the repo.
       - name: Set lightweight test envs
         run: |
           echo "SCHEDULING_URL=https://example.com" >> $GITHUB_ENV
@@ -51,3 +40,11 @@ jobs:
         run: npm run lint
       - name: Run tests
         run: npm test
+
+  integration:
+    name: Integration (live Twilio)
+    runs-on: ubuntu-latest
+    # NOTE: live integration moved to a manually-triggered workflow
+    # See .github/workflows/integration.yml for the manual workflow that runs
+    # live Twilio sends. Keeping this stub to be explicit in the file history.
+    if: false
