@@ -1,77 +1,64 @@
-const TEMPLATES_ES = {
-  fuga: 'Entiendo, tienes una fuga 💧. ¿Es bajo el fregadero, baño o exterior?',
-  destape: 'Parece una obstrucción 🚫🌀. ¿Drena lento o está totalmente tapado?',
-  camara: 'Hacemos inspecciones con cámara 📹. ¿En qué área está el asunto?',
-  calentador: '¿Es calentador de tanque o instantáneo? ¿Gas o eléctrico?',
-  default: '¡Gracias por escribir a DestapesPR! ¿Puedes contarme el problema (baño, cocina, exterior)?'
+// Respuestas en ES/EN + textos de recordatorios
+export const REPLIES = {
+  es: {
+    saludo:
+      '¡Hola! Soy el bot de DestapesPR 🚰. Puedo ayudarte a coordinar destapes y cotizaciones. Escribe "destape", "cotizar" o "emergencia".',
+    cierre:
+      '¿Te ayudo con algo más? Si quieres reservar, dime día y hora aproximada.',
+    reminders: {
+      confirm: ({ name, service, dateLabel, slotLabel, address }) =>
+        `¡Gracias, ${name}! Tu ${service} está confirmado para ${dateLabel} a las ${slotLabel} en ${address}. Si necesitas cambiar la cita, responde a este mensaje.`,
+      h24: ({ name, service, dateLabel, slotLabel }) =>
+        `Recordatorio (24h): ${name}, tu ${service} es mañana ${dateLabel} a las ${slotLabel}.`,
+      h2: ({ name, service, slotLabel }) =>
+        `Recordatorio (2h): ${name}, te esperamos a las ${slotLabel} para tu ${service}.`,
+      h0: ({ name }) => `¡Vamos en camino, ${name}!`
+    }
+  },
+  en: {
+    saludo:
+      "Hi! I'm DestapesPR's bot 🚰. I can help schedule unclogging and quotes. Type “unclog”, “quote” or “emergency”.",
+    cierre:
+      'Anything else I can help with? If you want to book, tell me a day/time.',
+    reminders: {
+      confirm: ({ name, service, dateLabel, slotLabel, address }) =>
+        `Thanks, ${name}! Your ${service} is confirmed for ${dateLabel} at ${slotLabel} at ${address}. If you need to reschedule, just reply to this message.`,
+      h24: ({ name, service, dateLabel, slotLabel }) =>
+        `Reminder (24h): ${name}, your ${service} is tomorrow ${dateLabel} at ${slotLabel}.`,
+      h2: ({ name, service, slotLabel }) =>
+        `Reminder (2h): ${name}, see you at ${slotLabel} for your ${service}.`,
+      h0: ({ name }) => `We're on our way, ${name}!`
+    }
+  }
 };
 
-const TEMPLATES_EN = {
-  fuga: 'Got it, you have a leak 💧. Is it under the sink, in the bathroom, or outside?',
-  obstruccion: 'Sounds like a blockage 🚫🌀. Is it draining slowly or completely clogged?',
-  drenaje: 'About the drain 🧰: kitchen, bathroom, or storm drain?',
-  camara: 'We do camera inspections 📹 to locate issues. Which area is it in?',
-  calentador: 'Is it a tank or tankless water heater? Gas or electric?',
-  default: 'Thanks for contacting DestapesPR! Can you tell me the issue (bathroom, kitchen, outside)?'
-};
+// Dado un keyword (de normalizer) y un idioma, arma la respuesta principal
+export function replyFor(keyword = '', lang = 'es') {
+  const L = REPLIES[lang] || REPLIES.es;
+  const k = String(keyword || '').toLowerCase();
 
-const FOLLOWUP_ES = {
-  area: '¿En qué pueblo está el usted? ',
-  urgencia: '¿Qué tan urgente es? (inmediato, hoy, 24–48h)',
-  disponibilidad: '¿Qué horarios o días te funcionan mejor para atenderte?'
-};
+  // Ajusta estos “case” a los keywords reales que devuelve tu detectKeyword()
+  switch (k) {
+    case 'destape':
+    case 'unclog':
+      return lang === 'es'
+        ? 'Perfecto. Para coordinar un destape necesito ubicación y una ventana de horario. ¿Dónde estás y qué hora te funciona?'
+        : 'Great. To schedule an unclog I need your location and a time window. Where are you and what time works?';
 
-const FOLLOWUP_EN = {
-  area: 'In which town are you located?',
-  urgencia: 'How urgent is it? (immediate, it can wait, 24–48h)',
-  disponibilidad: 'What time windows work for you?'
-};
+    case 'cotizar':
+    case 'quote':
+      return lang === 'es'
+        ? 'Con gusto te cotizo. Cuéntame el problema y envía fotos si puedes. ¿En qué municipio estás?'
+        : 'Happy to send a quote. Tell me the issue and share photos if possible. What city are you in?';
 
-export function replyFor(keyword, lang) {
-  const T = lang === 'en' ? TEMPLATES_EN : TEMPLATES_ES;
-  return T[keyword] ?? T.default;
-}
+    case 'emergencia':
+    case 'emergency':
+      return lang === 'es'
+        ? 'Entendido. Para emergencia intentamos priorizar hoy mismo. Envíame dirección exacta y un teléfono por si necesitamos llamarte.'
+        : 'Got it. For emergencies we try to prioritize same-day. Please send exact address and a phone number.';
 
-// Memoria simple por número (en producción: Redis/DB)
-const MEMORY = new Map();
-
-export function nextTurn(from, body, keyword, lang) {
-  const key = String(from || 'unknown');
-  const S = MEMORY.get(key) || { step: 0, data: {}, lang: lang || 'es' };
-  if (!S.lang) S.lang = lang || 'es';
-  const F = S.lang === 'en' ? FOLLOWUP_EN : FOLLOWUP_ES;
-
-  if (S.step === 0) {
-    S.data.keyword = keyword || 'general';
-    S.step = 1;
-    MEMORY.set(key, S);
-    return F.area;
+    default:
+      // Si no hay keyword reconocible, retorna saludo genérico
+      return L.saludo;
   }
-
-  if (S.step === 1) {
-    S.data.area = body;
-    S.step = 2;
-    MEMORY.set(key, S);
-    return F.urgencia;
-  }
-
-  if (S.step === 2) {
-    S.data.urgencia = body;
-    S.step = 3;
-    MEMORY.set(key, S);
-    return F.disponibilidad;
-  }
-
-  if (S.step === 3) {
-    S.data.disponibilidad = body;
-    S.step = 4;
-    MEMORY.set(key, S);
-    return S.lang === 'en'
-      ? `Thanks. Summary: issue=${S.data.keyword}, area=${S.data.area}, urgency=${S.data.urgencia}, availability=${S.data.disponibilidad}. Shall I confirm a visit?`
-      : `Gracias. Resumen: problema=${S.data.keyword}, área=${S.data.area}, urgencia=${S.data.urgencia}, disponibilidad=${S.data.disponibilidad}. ¿Te confirmo una visita?`;
-  }
-
-  return S.lang === 'en'
-    ? 'Would you like to schedule a visit or need more details?'
-    : '¿Deseas agendar visita o necesitas más detalles?';
 }
