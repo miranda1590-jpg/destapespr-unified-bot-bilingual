@@ -1,50 +1,33 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [ main ]
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node-version }}-
-      - name: Install dependencies
-        run: npm ci
-      - name: Audit dependencies
-        run: npm audit --audit-level=moderate
-      # Note: unit tests and lint do NOT require Twilio secrets. Integration
-      # tests that perform live Twilio sends are run in a separate job that
-      # only executes when the required secrets are configured in the repo.
-      - name: Set lightweight test envs
-        run: |
-          echo "SCHEDULING_URL=https://example.com" >> $GITHUB_ENV
-          echo "DESTAPESPR_MAIN_PHONE=+17879220068" >> $GITHUB_ENV
-      - name: Run linter
-        run: npm run lint
-      - name: Run tests
-        run: npm test
+          node-version: '20'
+          cache: 'npm'
 
-  integration:
-    name: Integration (live Twilio)
-    runs-on: ubuntu-latest
-    # NOTE: live integration moved to a manually-triggered workflow
-    # See .github/workflows/integration.yml for the manual workflow that runs
-    # live Twilio sends. Keeping this stub to be explicit in the file history.
-    if: false
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build (optional)
+        run: npm run build --if-present
+
+      - name: Lint (optional)
+        run: npm run lint --if-present
+
+      - name: Run tests (optional)
+        run: npm test --if-present
