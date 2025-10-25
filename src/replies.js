@@ -1,7 +1,6 @@
 const TEMPLATES_ES = {
   fuga: 'Entiendo, tienes una fuga 💧. ¿Es bajo el fregadero, baño o exterior?',
-  obstruccion: 'Parece una obstrucción 🚫🌀. ¿Drena lento o está totalmente tapado?',
-  drenaje: 'Sobre el drenaje 🧰: ¿es cocina, baño o pluvial?',
+  destape: 'Parece una obstrucción 🚫🌀. ¿Drena lento o está totalmente tapado?',
   camara: 'Hacemos inspecciones con cámara 📹. ¿En qué área está el asunto?',
   calentador: '¿Es calentador de tanque o instantáneo? ¿Gas o eléctrico?',
   default: '¡Gracias por escribir a DestapesPR! ¿Puedes contarme el problema (baño, cocina, exterior)?'
@@ -17,14 +16,14 @@ const TEMPLATES_EN = {
 };
 
 const FOLLOWUP_ES = {
-  area: '¿En qué área está el problema (baño, cocina, exterior)?',
+  area: '¿En qué pueblo está el usted? ',
   urgencia: '¿Qué tan urgente es? (inmediato, hoy, 24–48h)',
-  disponibilidad: '¿Qué horarios te funcionan para atenderte?'
+  disponibilidad: '¿Qué horarios o días te funcionan mejor para atenderte?'
 };
 
 const FOLLOWUP_EN = {
-  area: 'Which area is the issue in (bathroom, kitchen, outside)?',
-  urgencia: 'How urgent is it? (immediate, today, 24–48h)',
+  area: 'In which town are you located?',
+  urgencia: 'How urgent is it? (immediate, it can wait, 24–48h)',
   disponibilidad: 'What time windows work for you?'
 };
 
