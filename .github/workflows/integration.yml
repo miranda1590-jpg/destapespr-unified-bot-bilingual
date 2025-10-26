@@ -3,15 +3,16 @@ name: Integration - Manual Twilio send
 on:
   workflow_dispatch:
     inputs:
-      note:
-        description: Optional note for this manual run
+      message:
+        description: "Mensaje opcional para enviar en la prueba"
         required: false
+        default: "Prueba desde integración GitHub Actions ✅"
 
 jobs:
   run-live-twilio:
     name: Manual live Twilio smoke test
     runs-on: ubuntu-latest
-    if: ${{ secrets.TWILIO_ACCOUNT_SID && secrets.TWILIO_AUTH_TOKEN && secrets.TWILIO_WHATSAPP_NUMBER && secrets.TEST_WHATSAPP_TO }}
+    if: ${{ always() && secrets.TWILIO_ACCOUNT_SID && secrets.TWILIO_AUTH_TOKEN && secrets.TWILIO_WHATSAPP_NUMBER && secrets.TEST_WHATSAPP_TO }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,4 +26,4 @@ jobs:
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_WHATSAPP_NUMBER: ${{ secrets.TWILIO_WHATSAPP_NUMBER }}
           TEST_WHATSAPP_TO: ${{ secrets.TEST_WHATSAPP_TO }}
-        run: node scripts/send-test-wa.js "$TEST_WHATSAPP_TO"
+        run: node scripts/send-test-wa.js "${{ github.event.inputs.message }}"
