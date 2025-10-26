@@ -1,15 +1,19 @@
 // src/texts.js
 export const L = {
   es: {
-    saludo: "¡Hola! 👋 Soy el asistente de DestapesPR. ¿En qué podemos ayudarte hoy? (precio, disponibilidad, emergencia, dirección…)",
+    saludo: "¡Hola! 👋 Soy el asistente de DestapesPR. ¿En qué podemos ayudarte hoy?",
     cierre: "¿Te ayudo con algo más?",
     faq: {
-      precio: "Nuestros precios varían según el trabajo. Para cotizar, dime el tipo de problema (fregadero, inodoro, tubería principal) y tu ubicación aproximada.",
-      disponibilidad: "Tenemos disponibilidad el mismo día en la mayoría de áreas. ¿Para cuándo lo necesitas? Puedo agendarte rápido.",
-      emergencia: "¡Entendido! Para emergencias priorizamos el servicio. ¿En qué zona estás y cuál es el problema? Te confirmo el tiempo estimado.",
-      direccion: "Compárteme por favor la dirección (o referencia cercana). Así verifico cobertura y te confirmo la hora.",
-      agendar: "Perfecto, agendamos. Dime: nombre, dirección y un horario aproximado (mañana/tarde). Te envío confirmación enseguida.",
-      otro: "Puedo ayudarte con: precios, disponibilidad, emergencias y agenda. Cuéntame un poco más y lo resolvemos."
+      destape:
+        "✅ *Destape de tuberías*: Trabajamos fregaderos, inodoros, duchas y línea principal. Para cotizar rápido dime: zona (municipio/sector) y dónde está el tapón.",
+      fuga:
+        "💧 *Fuga de agua*: Localizamos y reparamos fugas visibles y ocultas. ¿Dónde notas la humedad o goteo y desde cuándo ocurre? Compárteme tu zona para estimar tiempo de llegada.",
+      camara:
+        "🎥 *Cámara de inspección*: Hacemos diagnóstico con video para tuberías y drenajes (ideal si el problema regresa). ¿En qué línea necesitas inspección y en qué área estás?",
+      cita:
+        "🗓️ *Agendar cita*: Dime *nombre*, *dirección* y horario preferido (*mañana* o *tarde*). Si ya tienes fecha en mente, mejor aún. Te envío confirmación enseguida.",
+      otros:
+        "Puedo ayudarte con *destapes, fugas, cámara de inspección* y *citas*. Cuéntame brevemente el problema y tu zona para orientarte y darte tiempo estimado."
     },
     reminders: {
       confirm: ({ name, service, date, slot, address }) =>
@@ -26,15 +30,19 @@ export const L = {
   },
 
   en: {
-    saludo: "Hi! 👋 I’m DestapesPR assistant. How can I help today? (price, availability, emergency, address…)",
+    saludo: "Hi! 👋 I’m DestapesPR assistant. How can I help today?",
     cierre: "Anything else I can help with?",
     faq: {
-      precio: "Pricing depends on the job. Tell me the issue (sink, toilet, main line) and your approximate location to quote.",
-      disponibilidad: "We usually have same-day availability. When do you need it? I can book you quickly.",
-      emergencia: "Got it! For emergencies we prioritize service. What’s the area and the issue? I’ll confirm ETA.",
-      direccion: "Please share your address (or nearest reference). I’ll confirm coverage and time.",
-      agendar: "Great, let’s book it. Please send name, address and a preferred time (morning/afternoon). I’ll confirm right away.",
-      otro: "I can help with pricing, availability, emergencies and booking. Tell me a bit more."
+      destape:
+        "✅ *Drain unclogging*: We clear sinks, toilets, showers, and main lines. To quote quickly, tell me your area and which fixture is blocked.",
+      fuga:
+        "💧 *Leak repair*: We find and fix visible/hidden leaks. Where do you see moisture/dripping and since when? Share your area for an ETA.",
+      camara:
+        "🎥 *Camera inspection*: Video diagnostics for drains and sewer lines (great for recurring issues). Which line do you want inspected and what’s your area?",
+      cita:
+        "🗓️ *Book an appointment*: Please send *name*, *address*, and preferred time (*morning* or *afternoon*). If you already have a date, even better. I’ll confirm right away.",
+      otros:
+        "I can help with *unclogs, leaks, camera inspection,* and *appointments*. Tell me briefly the issue and your area for guidance and an ETA."
     },
     reminders: {
       confirm: ({ name, service, date, slot, address }) =>

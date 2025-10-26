@@ -1,43 +1,44 @@
 // src/replies.js
 import { L } from './texts.js';
 
-// Mapa de keywords -> clave de mensaje en L.faq
-// Asegúrate de que detectKeyword devuelva alguno de estos keys (o "" si no encontró).
+// Keywords esperados desde tu detectKeyword()
 const KEY_MAP = {
-  precio: 'precio',
-  disponibilidad: 'disponibilidad',
-  emergencia: 'emergencia',
-  direccion: 'direccion',
-  agendar: 'agendar',
-  gracias: 'otro',
-  saludo: 'otro',
-  otro: 'otro'
+  destape: 'destape',
+  fuga: 'fuga',
+  camara: 'camara',
+  cita: 'cita',
+  otros: 'otros',
+  // Fallbacks comunes
+  precio: 'destape',          // si piden precio, suele ser por destape
+  disponibilidad: 'cita',     // disponibilidad -> agendar
+  emergencia: 'destape',      // emergencia -> destape/servicio rápido
+  direccion: 'cita',          // piden dirección -> agenda
+  agendar: 'cita',
+  saludo: 'otros',
+  otro: 'otros'
 };
 
-// Export opcional (por compatibilidad con imports existentes)
+// Export para compatibilidad (si en algún lado importabas REPLIES)
 export const REPLIES = {
   es: {
-    ...L.es.faq,
     saludo: L.es.saludo,
-    cierre: L.es.cierre
+    cierre: L.es.cierre,
+    ...L.es.faq
   },
   en: {
-    ...L.en.faq,
     saludo: L.en.saludo,
-    cierre: L.en.cierre
+    cierre: L.en.cierre,
+    ...L.en.faq
   }
 };
 
 export function replyFor(keyword = '', lang = 'es') {
   const t = L[lang] || L.es;
-  const key = KEY_MAP[keyword] || 'otro';
+  const key = KEY_MAP[keyword] || 'otros';
 
-  if (!keyword || key === 'otro') {
-    // Si no hubo keyword clara, manda saludo “inteligente”
-    return `${t.saludo}`;
-  }
+  // Si no hay keyword clara, manda saludo breve
+  if (!keyword) return t.saludo;
 
-  // Mensaje principal + cierre corto
-  const main = t.faq[key] || t.faq.otro;
+  const main = t.faq[key] || t.faq.otros;
   return `${main}\n\n${t.cierre}`;
 } 
