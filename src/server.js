@@ -1,4 +1,6 @@
+wip/local-fixes
 // src/server.js
+feat/initial-setup
 import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
@@ -29,8 +31,8 @@ app.post('/webhook/whatsapp', (req, res) => {
   const body = req.body.Body || req.body.body || '';
 
   const { dbg_normalized } = normalizeText(body);
-  const lang = detectLanguage(dbg_normalized);         // 'es' o 'en'
-  const keyword = detectKeyword(dbg_normalized, lang); // '' si no encontró
+  const lang = detectLanguage(dbg_normalized) || 'es';
+  const keyword = detectKeyword(dbg_normalized, lang) || '';
 
   const log = makeLog({ from, body, normalized: dbg_normalized, keyword, lang });
   writeLog({ route: '/webhook/whatsapp', ...log });
@@ -93,4 +95,8 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+wip/local-fixes
 app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+=======
+app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+feat/initial-setup
