@@ -1,4 +1,3 @@
-cat > src/server.js <<'EOF'
 import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
@@ -8,7 +7,7 @@ import { normalizeText, detectLanguage, detectKeyword } from './normalizer.js';
 import { REPLIES, replyFor } from './replies.js';
 import { scheduleAllForBooking } from './reminders.js';
 
-// (Opcional) logger si existe
+// Logger opcional (si no existe, no rompe)
 let makeLog = (x) => x, writeLog = () => {};
 try {
   const logger = await import('./logger.js');
@@ -22,14 +21,16 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 app.get('/', (_req, res) => res.send('DestapesPR Bot OK'));
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+app.get('/health', (_req, res) =>
+  res.json({ ok: true, ts: new Date().toISOString() })
+);
 
 app.post('/webhook/whatsapp', (req, res) => {
   const from = req.body.From || req.body.from || req.body.WaId || '';
   const body = req.body.Body || req.body.body || '';
 
   const { dbg_normalized } = normalizeText(body);
-  const lang = detectLanguage(dbg_normalized);         // 'es' o 'en'
+  const lang = detectLanguage(dbg_normalized);         // 'es' | 'en'
   const keyword = detectKeyword(dbg_normalized, lang); // '' si no encontró
 
   const log = makeLog({ from, body, normalized: dbg_normalized, keyword, lang });
@@ -44,6 +45,7 @@ app.post('/webhook/whatsapp', (req, res) => {
     text = `${main}\n\n${cierre}`;
   }
 
+  // Si viene de Twilio, responder XML
   const looksLikeTwilio = typeof req.body.Body === 'string' || typeof req.body.WaId === 'string';
   if (looksLikeTwilio) {
     const safe = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -54,6 +56,7 @@ app.post('/webhook/whatsapp', (req, res) => {
   return res.json({ ok: true, reply: text, debug: log });
 });
 
+// Endpoint para programar recordatorios de una cita (opcional)
 app.post('/api/bookings', async (req, res) => {
   try {
     const { to, name, address, service, whenISO, lang, previewText } = req.body;
@@ -93,4 +96,3 @@ app.post('/api/bookings', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
-EOF

@@ -1,36 +1,31 @@
-import twilio from 'twilio';
-import dotenv from 'dotenv';
+import Twilio from 'twilio';
 
-dotenv.config();
+const ENABLE_TWILIO = String(process.env.ENABLE_TWILIO || '').toLowerCase() === 'true';
+const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
+const AUTH_TOKEN  = process.env.TWILIO_AUTH_TOKEN  || '';
+const WA_FROM     = process.env.TWILIO_WHATSAPP_NUMBER || ''; // ej: +14155238886
 
-// Variables de entorno esperadas:
-// TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const normalizeWa = (n) => (String(n).startsWith('whatsapp:') ? n : `whatsapp:${n}`);
 
-/**
- * Envía un mensaje de WhatsApp usando Twilio.
- * @param {string} to - Número del destinatario (ej: +1787XXXXXXX)
- * @param {string} body - Contenido del mensaje
- */
-export async function sendWhatsApp(to, body) {
-  try {
-    if (!to || !body) {
-      console.error('❌ sendWhatsApp: Parámetros inválidos', { to, body });
-      return;
-    }
+let client = null;
+if (ENABLE_TWILIO && ACCOUNT_SID && AUTH_TOKEN) {
+  client = Twilio(ACCOUNT_SID, AUTH_TOKEN);
+}
 
-    const from = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
-    const toFormatted = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
-
-    const msg = await client.messages.create({
-      from,
-      to: toFormatted,
-      body,
-    });
-
-    console.log(`✅ WhatsApp enviado a ${to}: SID ${msg.sid}`);
-    return msg.sid;
-  } catch (err) {
-    console.error('❌ Error enviando WhatsApp:', err.message);
+export async function sendWhatsApp(to, text) {
+  const ts = new Date().toISOString();
+  if (!ENABLE_TWILIO || !client || !WA_FROM) {
+    console.log(`[WA-DRYRUN ${ts}] to=${to} :: ${text}`);
+    return { ok: true, dryRun: true };
   }
+  const msg = await client.messages.create({
+    from: normalizeWa(WA_FROM),
+    to: normalizeWa(to),
+    body: text
+  });
+  return { ok: true, sid: msg.sid };
+}
+
+export function canSend() {
+  return ENABLE_TWILIO && !!client && !!WA_FROM;
 }
