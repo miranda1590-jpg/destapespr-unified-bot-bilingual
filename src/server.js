@@ -1,3 +1,6 @@
+wip/local-fixes
+// src/server.js
+feat/initial-setup
 import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
@@ -7,7 +10,7 @@ import { normalizeText, detectLanguage, detectKeyword } from './normalizer.js';
 import { REPLIES, replyFor } from './replies.js';
 import { scheduleAllForBooking } from './reminders.js';
 
-// (Opcional) logger si existe
+// Logger opcional (si no existe logger.js, no falla)
 let makeLog = (x) => x, writeLog = () => {};
 try {
   const logger = await import('./logger.js');
@@ -45,6 +48,7 @@ app.post('/webhook/whatsapp', (req, res) => {
 
   const looksLikeTwilio = typeof req.body.Body === 'string' || typeof req.body.WaId === 'string';
   if (looksLikeTwilio) {
+    // escapar para TwiML
     const safe = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
     res.set('Content-Type', 'application/xml');
@@ -91,4 +95,8 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+wip/local-fixes
 app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+=======
+app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+feat/initial-setup
