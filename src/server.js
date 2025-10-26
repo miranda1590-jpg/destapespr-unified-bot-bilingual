@@ -1,3 +1,9 @@
+fix/render-package
+
+wip/local-fixes
+// src/server.js
+feat/initial-setup
+feat/initial-setup
 import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
@@ -7,7 +13,11 @@ import { normalizeText, detectLanguage, detectKeyword } from './normalizer.js';
 import { REPLIES, replyFor } from './replies.js';
 import { scheduleAllForBooking } from './reminders.js';
 
+fix/render-package
 // Logger opcional (si no existe, no rompe)
+
+// Logger opcional (si no existe logger.js, no falla)
+feat/initial-setup
 let makeLog = (x) => x, writeLog = () => {};
 try {
   const logger = await import('./logger.js');
@@ -30,8 +40,13 @@ app.post('/webhook/whatsapp', (req, res) => {
   const body = req.body.Body || req.body.body || '';
 
   const { dbg_normalized } = normalizeText(body);
+fix/render-package
   const lang = detectLanguage(dbg_normalized);         // 'es' | 'en'
   const keyword = detectKeyword(dbg_normalized, lang); // '' si no encontró
+
+  const lang = detectLanguage(dbg_normalized) || 'es';
+  const keyword = detectKeyword(dbg_normalized, lang) || '';
+feat/initial-setup
 
   const log = makeLog({ from, body, normalized: dbg_normalized, keyword, lang });
   writeLog({ route: '/webhook/whatsapp', ...log });
@@ -48,6 +63,7 @@ app.post('/webhook/whatsapp', (req, res) => {
   // Si viene de Twilio, responder XML
   const looksLikeTwilio = typeof req.body.Body === 'string' || typeof req.body.WaId === 'string';
   if (looksLikeTwilio) {
+    // escapar para TwiML
     const safe = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
     res.set('Content-Type', 'application/xml');
@@ -95,4 +111,11 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+wip/local-fixes
 app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+fix/render-package
+
+
+app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+feat/initial-setup
+feat/initial-setup
