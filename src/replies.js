@@ -1,64 +1,43 @@
-// Respuestas en ES/EN + textos de recordatorios
+// src/replies.js
+import { L } from './texts.js';
+
+// Mapa de keywords -> clave de mensaje en L.faq
+// Asegúrate de que detectKeyword devuelva alguno de estos keys (o "" si no encontró).
+const KEY_MAP = {
+  precio: 'precio',
+  disponibilidad: 'disponibilidad',
+  emergencia: 'emergencia',
+  direccion: 'direccion',
+  agendar: 'agendar',
+  gracias: 'otro',
+  saludo: 'otro',
+  otro: 'otro'
+};
+
+// Export opcional (por compatibilidad con imports existentes)
 export const REPLIES = {
   es: {
-    saludo:
-      '¡Hola! Soy el bot de DestapesPR 🚰. Puedo ayudarte a coordinar destapes y cotizaciones. Escribe "destape", "cotizar" o "emergencia".',
-    cierre:
-      '¿Te ayudo con algo más? Si quieres reservar, dime día y hora aproximada.',
-    reminders: {
-      confirm: ({ name, service, dateLabel, slotLabel, address }) =>
-        `¡Gracias, ${name}! Tu ${service} está confirmado para ${dateLabel} a las ${slotLabel} en ${address}. Si necesitas cambiar la cita, responde a este mensaje.`,
-      h24: ({ name, service, dateLabel, slotLabel }) =>
-        `Recordatorio (24h): ${name}, tu ${service} es mañana ${dateLabel} a las ${slotLabel}.`,
-      h2: ({ name, service, slotLabel }) =>
-        `Recordatorio (2h): ${name}, te esperamos a las ${slotLabel} para tu ${service}.`,
-      h0: ({ name }) => `¡Vamos en camino, ${name}!`
-    }
+    ...L.es.faq,
+    saludo: L.es.saludo,
+    cierre: L.es.cierre
   },
   en: {
-    saludo:
-      "Hi! I'm DestapesPR's bot 🚰. I can help schedule unclogging and quotes. Type “unclog”, “quote” or “emergency”.",
-    cierre:
-      'Anything else I can help with? If you want to book, tell me a day/time.',
-    reminders: {
-      confirm: ({ name, service, dateLabel, slotLabel, address }) =>
-        `Thanks, ${name}! Your ${service} is confirmed for ${dateLabel} at ${slotLabel} at ${address}. If you need to reschedule, just reply to this message.`,
-      h24: ({ name, service, dateLabel, slotLabel }) =>
-        `Reminder (24h): ${name}, your ${service} is tomorrow ${dateLabel} at ${slotLabel}.`,
-      h2: ({ name, service, slotLabel }) =>
-        `Reminder (2h): ${name}, see you at ${slotLabel} for your ${service}.`,
-      h0: ({ name }) => `We're on our way, ${name}!`
-    }
+    ...L.en.faq,
+    saludo: L.en.saludo,
+    cierre: L.en.cierre
   }
 };
 
-// Dado un keyword (de normalizer) y un idioma, arma la respuesta principal
 export function replyFor(keyword = '', lang = 'es') {
-  const L = REPLIES[lang] || REPLIES.es;
-  const k = String(keyword || '').toLowerCase();
+  const t = L[lang] || L.es;
+  const key = KEY_MAP[keyword] || 'otro';
 
-  // Ajusta estos “case” a los keywords reales que devuelve tu detectKeyword()
-  switch (k) {
-    case 'destape':
-    case 'unclog':
-      return lang === 'es'
-        ? 'Perfecto. Para coordinar un destape necesito ubicación y una ventana de horario. ¿Dónde estás y qué hora te funciona?'
-        : 'Great. To schedule an unclog I need your location and a time window. Where are you and what time works?';
-
-    case 'cotizar':
-    case 'quote':
-      return lang === 'es'
-        ? 'Con gusto te cotizo. Cuéntame el problema y envía fotos si puedes. ¿En qué municipio estás?'
-        : 'Happy to send a quote. Tell me the issue and share photos if possible. What city are you in?';
-
-    case 'emergencia':
-    case 'emergency':
-      return lang === 'es'
-        ? 'Entendido. Para emergencia intentamos priorizar hoy mismo. Envíame dirección exacta y un teléfono por si necesitamos llamarte.'
-        : 'Got it. For emergencies we try to prioritize same-day. Please send exact address and a phone number.';
-
-    default:
-      // Si no hay keyword reconocible, retorna saludo genérico
-      return L.saludo;
+  if (!keyword || key === 'otro') {
+    // Si no hubo keyword clara, manda saludo “inteligente”
+    return `${t.saludo}`;
   }
-}
+
+  // Mensaje principal + cierre corto
+  const main = t.faq[key] || t.faq.otro;
+  return `${main}\n\n${t.cierre}`;
+} 
