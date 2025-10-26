@@ -4,26 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       note:
-        description: "Optional note for this manual run"
+        description: Optional note for this manual run
         required: false
 
 jobs:
   run-live-twilio:
     name: Manual live Twilio smoke test
     runs-on: ubuntu-latest
-    # Solo corre si los secrets existen
     if: ${{ secrets.TWILIO_ACCOUNT_SID && secrets.TWILIO_AUTH_TOKEN && secrets.TWILIO_WHATSAPP_NUMBER && secrets.TEST_WHATSAPP_TO }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install deps
-        run: npm ci --no-audit --no-fund
-
+      - run: npm ci
       - name: Run Twilio live-send smoke test
         env:
           ENABLE_TWILIO: 'true'
@@ -31,6 +25,4 @@ jobs:
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_WHATSAPP_NUMBER: ${{ secrets.TWILIO_WHATSAPP_NUMBER }}
           TEST_WHATSAPP_TO: ${{ secrets.TEST_WHATSAPP_TO }}
-        run: |
-          echo "Manual live Twilio send (will send one message to TEST_WHATSAPP_TO)"
-          node scripts/send-test-wa.js "$TEST_WHATSAPP_TO"
+        run: node scripts/send-test-wa.js "$TEST_WHATSAPP_TO"
