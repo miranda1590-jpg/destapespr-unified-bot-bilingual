@@ -1,44 +1,48 @@
-// src/replies.js
-import { L } from './texts.js';
+cat > src/replies.js <<'EOF'
+import { detectLanguage, detectIntent, normalizeText } from './keywords.js';
 
-// Keywords esperados desde tu detectKeyword()
-const KEY_MAP = {
-  destape: 'destape',
-  fuga: 'fuga',
-  camara: 'camara',
-  cita: 'cita',
-  otros: 'otros',
-  // Fallbacks comunes
-  precio: 'destape',          // si piden precio, suele ser por destape
-  disponibilidad: 'cita',     // disponibilidad -> agendar
-  emergencia: 'destape',      // emergencia -> destape/servicio rápido
-  direccion: 'cita',          // piden dirección -> agenda
-  agendar: 'cita',
-  saludo: 'otros',
-  otro: 'otros'
-};
+export function replyFor(body, { from } = {}) {
+  const text = normalizeText(body || '');
+  const lang = detectLanguage(text);        // 'es' o 'en' (pero responderemos en ES)
+  const intent = detectIntent(text);        // 'destape' | 'fuga' | 'camara' | 'cita' | 'otros'
 
-// Export para compatibilidad (si en algún lado importabas REPLIES)
-export const REPLIES = {
-  es: {
-    saludo: L.es.saludo,
-    cierre: L.es.cierre,
-    ...L.es.faq
-  },
-  en: {
-    saludo: L.en.saludo,
-    cierre: L.en.cierre,
-    ...L.en.faq
+  // Solo ES por ahora (mensajes profesionales y con continuidad)
+  if (intent === 'destape') {
+    return [
+      'Entendido 👍. Necesitas un **destape**.',
+      '¿La tubería tapada es del **inodoro**, **fregadero**, **lavamanos**, **tubería principal** o es **pluvial**?',
+      'Si puedes, envía una breve descripción (p. ej., “retroceso en el inodoro” o “fregadero tarda en bajar”).'
+    ].join(' ');
   }
-};
 
-export function replyFor(keyword = '', lang = 'es') {
-  const t = L[lang] || L.es;
-  const key = KEY_MAP[keyword] || 'otros';
+  if (intent === 'fuga') {
+    return [
+      'Gracias por avisar 💧. Parece una **fuga**.',
+      '¿Notas **goteo constante**, **charco**, olor, o sube el contador de agua?',
+      'Indica el área (baño, cocina, exterior) y si ya cerraste la llave principal.'
+    ].join(' ');
+  }
 
-  // Si no hay keyword clara, manda saludo breve
-  if (!keyword) return t.saludo;
+  if (intent === 'camara') {
+    return [
+      'Perfecto 👀. Podemos hacer **inspección con cámara** para localizar obstrucciones o roturas.',
+      '¿En qué línea necesitas inspección (principal, baño, cocina, pluvial) y qué síntomas presentas?',
+      'Así definimos el punto de acceso y el alcance.'
+    ].join(' ');
+  }
 
-  const main = t.faq[key] || t.faq.otros;
-  return `${main}\n\n${t.cierre}`;
-} 
+  if (intent === 'cita') {
+    return [
+      'Claro 📅. Podemos **agendar una visita técnica**.',
+      'Reserva aquí: https://calendly.com/destapespr/visita-tecnica-destapespr',
+      'Si prefieres, dime **día** y **franja** (mañana/tarde) y te la agendo manualmente.'
+    ].join(' ');
+  }
+
+  // otros / saludo
+  return [
+    '¡Hola! 👋 Soy el asistente de DestapesPR. ¿En qué podemos ayudarte hoy?',
+    'Puedo ayudarte con **destape**, **fuga**, **inspección con cámara** o **agendar una cita**.'
+  ].join(' ');
+}
+EOF 

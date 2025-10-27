@@ -3,11 +3,11 @@ import express from 'express';
 import morgan from 'morgan';
 import dayjs from 'dayjs';
 
-import { normalizeText, detectLanguage, detectKeyword } from './normalizer.js';
-import { REPLIES, replyFor } from './replies.js';
-import { scheduleAllForBooking } from './reminders.js';
+import { replyFor } from './replies.js';
+import reminders from './reminders.js';
+const { scheduleAllForBooking } = reminders;
 
-// (Opcional) logger si existe
+// Logger opcional (si no existe, no rompe)
 let makeLog = (x) => x, writeLog = () => {};
 try {
   const logger = await import('./logger.js');
@@ -27,21 +27,10 @@ app.post('/webhook/whatsapp', (req, res) => {
   const from = req.body.From || req.body.from || req.body.WaId || '';
   const body = req.body.Body || req.body.body || '';
 
-  const { dbg_normalized } = normalizeText(body);
-  const lang = detectLanguage(dbg_normalized) || 'es';
-  const keyword = detectKeyword(dbg_normalized, lang) || '';
+  const log = makeLog({ route: '/webhook/whatsapp', from, body });
+  writeLog(log);
 
-  const log = makeLog({ from, body, normalized: dbg_normalized, keyword, lang });
-  writeLog({ route: '/webhook/whatsapp', ...log });
-
-  let text = '';
-  if (!keyword) {
-    text = REPLIES[lang]?.saludo ?? REPLIES.es.saludo;
-  } else {
-    const main = replyFor(keyword, lang);
-    const cierre = REPLIES[lang]?.cierre ?? REPLIES.es.cierre;
-    text = `${main}\n\n${cierre}`;
-  }
+  const text = replyFor(body, { from });
 
   const looksLikeTwilio = typeof req.body.Body === 'string' || typeof req.body.WaId === 'string';
   if (looksLikeTwilio) {
@@ -53,34 +42,28 @@ app.post('/webhook/whatsapp', (req, res) => {
   return res.json({ ok: true, reply: text, debug: log });
 });
 
+// Endpoint simple para programar recordatorios desde tu front o prueba
 app.post('/api/bookings', async (req, res) => {
   try {
-    const { to, name, address, service, whenISO, lang, previewText } = req.body;
+    const { to, name, address, service, whenISO, lang = 'es', slotLabel, dateLabel } = req.body;
     if (!to || !service || !whenISO) {
       return res.status(400).json({ ok:false, error:'Missing to/service/whenISO' });
     }
 
-    let langFinal = lang;
-    if (!langFinal && previewText) {
-      const { dbg_normalized } = normalizeText(previewText);
-      langFinal = detectLanguage(dbg_normalized);
-    }
-    if (!langFinal) langFinal = 'es';
-
     const start = dayjs(whenISO);
-    const slotLabel = start.format('h:mm A');
-    const dateLabel = start.format('YYYY-MM-DD');
+    const slot = slotLabel || start.format('h:mm A');
+    const date = dateLabel || start.format('YYYY-MM-DD');
 
     scheduleAllForBooking({
       to,
-      lang: langFinal,
+      lang,
       whenISO,
       service,
       name: name || 'Cliente',
       address: address || 'por confirmar',
-      slotLabel,
-      dateLabel,
-      durationMin: 60
+      slotLabel: slot,
+      dateLabel: date,
+      durationMin: 60,
     });
 
     return res.json({ ok:true, scheduled:true });
