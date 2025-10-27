@@ -9,82 +9,81 @@ app.use(morgan('dev'));
 
 const PORT = process.env.PORT || 3000;
 
-// === ENLACE DE CITA ===
-// Usa solo UNO de los dos enlaces:
-const LINK_CITA = 'https://calendly.com/destapespr/cita';
-// const LINK_CITA = 'https://wa.me/17879220068?text=Quiero%20agendar%20una%20cita';
+// ===== MARCA ÚNICA / VERSION =====
+const TAG = '[[MENU-V2]]';
+app.get('/__version', (_req, res) => res.json({ ok: true, tag: TAG }));
 
-// === MENÚ PRINCIPAL ===
-const MAIN_MENU = `
-👋 ¡Bienvenido a *DestapesPR*!
+// ===== ENLACE DE CITA =====
+const LINK_CITA = 'https://wa.me/17879220068?text=Quiero%20agendar%20una%20cita';
+// const LINK_CITA = 'https://calendly.com/destapespr/cita';
+
+// ===== MENÚ PRINCIPAL (texto plano, WhatsApp-friendly) =====
+const MAIN_MENU =
+`${TAG} 👋 Bienvenido a DestapesPR
 
 Escribe el número o la palabra del servicio que necesitas:
 
-1️⃣ *Destape* – drenajes o tuberías tapadas
-2️⃣ *Fuga* – fugas de agua 💧
-3️⃣ *Cámara* – inspección con cámara 📹
-4️⃣ *Calentador* – gas o eléctrico 🔥
-5️⃣ *Otro* – otro tipo de servicio
-`;
+1 - Destape (drenajes o tuberías tapadas)
+2 - Fuga (fugas de agua)
+3 - Cámara (inspección con cámara)
+4 - Calentador (gas o eléctrico)
+5 - Otro (otro tipo de servicio)
 
-// === RESPUESTAS POR OPCIÓN ===
+📅 Para agendar cita: ${LINK_CITA}`;
+
+// ===== RESPUESTAS =====
 const RESPUESTAS = {
-  destape: `🌀 Perfecto, ¿en qué área estás (municipio/sector)? Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).
+  destape:
+`${TAG} Perfecto. ¿En qué área estás (municipio o sector)?
+Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).
+📅 Cita: ${LINK_CITA}`,
 
-📅 *Agendar cita ahora:*  
-👉 ${LINK_CITA}`,
+  fuga:
+`${TAG} Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?
+📅 Cita: ${LINK_CITA}`,
 
-  fuga: `💧 Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?
+  camara:
+`${TAG} Hacemos inspección con cámara. ¿En qué área la necesitas (baño, cocina, línea principal)?
+📅 Cita: ${LINK_CITA}`,
 
-📅 *Agendar cita ahora:*  
-👉 ${LINK_CITA}`,
+  calentador:
+`${TAG} Revisamos calentadores eléctricos o de gas. ¿Qué tipo tienes y qué problema notas?
+📅 Cita: ${LINK_CITA}`,
 
-  camara: `📹 Realizamos inspecciones con cámara. ¿En qué área necesitas la inspección (baño, cocina, línea principal)?
-
-📅 *Agendar cita ahora:*  
-👉 ${LINK_CITA}`,
-
-  calentador: `🔥 Revisamos calentadores eléctricos o de gas. ¿Qué tipo de calentador tienes y qué problema notas?
-
-📅 *Agendar cita ahora:*  
-👉 ${LINK_CITA}`,
-
-  otro: `🧰 Cuéntame brevemente qué servicio necesitas y en qué área estás ubicado.
-
-📅 *Agendar cita ahora:*  
-👉 ${LINK_CITA}`
+  otro:
+`${TAG} Cuéntame brevemente qué servicio necesitas y en qué área estás.
+📅 Cita: ${LINK_CITA}`
 };
 
-// === MAPEOS NUMÉRICOS ===
-const OPCIONES = {
-  '1': 'destape',
-  '2': 'fuga',
-  '3': 'camara',
-  '4': 'calentador',
-  '5': 'otro'
-};
+const OPCIONES = { '1': 'destape', '2': 'fuga', '3': 'camara', '4': 'calentador', '5': 'otro' };
 
-// === WEBHOOK WHATSAPP ===
+// ===== WEBHOOK =====
 app.post('/webhook/whatsapp', (req, res) => {
+  // Log claro para Render (para ver qué llega realmente desde Twilio)
+  console.log('[INCOMING]', {
+    ct: req.headers['content-type'],
+    url: req.originalUrl,
+    body: req.body
+  });
+
   const body = (req.body.Body || req.body.body || '').toLowerCase().trim();
   let reply;
 
-  if (['hola', 'buenas', 'hi', 'menu', 'start', 'comenzar', 'servicio'].includes(body) || !body) {
+  if (['hola', 'buenas', 'hi', 'menu', 'start', 'servicio'].includes(body) || !body) {
     reply = MAIN_MENU;
   } else if (OPCIONES[body]) {
-    const palabra = OPCIONES[body];
-    reply = RESPUESTAS[palabra];
+    reply = RESPUESTAS[OPCIONES[body]];
   } else if (RESPUESTAS[body]) {
     reply = RESPUESTAS[body];
   } else {
-    reply = "No entendí tu mensaje 🤔\n\nPor favor escribe el número o la palabra de una opción:\n\n" + MAIN_MENU;
+    reply = `${TAG} No entendí tu mensaje. Escribe el número o la palabra de una opción:\n\n${MAIN_MENU}`;
   }
 
-  const safe = reply.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const safe = String(reply).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
   res.set('Content-Type', 'application/xml');
   res.send(xml);
 });
 
-app.get('/', (_req, res) => res.send('DestapesPR Bot con menú y citas ✅'));
-app.listen(PORT, () => console.log(`DestapesPR bot (menú + cita) corriendo en http://localhost:${PORT}`));
+app.get('/', (_req, res) => res.send(`${TAG} DestapesPR Bot activo ✅`));
+app.listen(PORT, () => console.log(`💬 DestapesPR bot corriendo en http://localhost:${PORT}`));
