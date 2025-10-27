@@ -1,94 +1,94 @@
 import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
-import dayjs from 'dayjs';
-
-import { normalizeText, detectLanguage, detectKeyword } from './normalizer.js';
-import { REPLIES, replyFor } from './replies.js';
-import { scheduleAllForBooking } from './reminders.js';
-
-// (Opcional) logger si existe
-let makeLog = (x) => x, writeLog = () => {};
-try {
-  const logger = await import('./logger.js');
-  makeLog = logger.makeLog ?? makeLog;
-  writeLog = logger.writeLog ?? writeLog;
-} catch {}
 
 const app = express();
-app.use(express.urlencoded({ extended: true })); // Twilio manda form-encoded
+app.use(express.urlencoded({ extended: true })); // Twilio usa x-www-form-urlencoded
 app.use(express.json());
 app.use(morgan('dev'));
 
-app.get('/', (_req, res) => res.send('DestapesPR Bot OK'));
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
-
-app.post('/webhook/whatsapp', (req, res) => {
-  const from = req.body.From || req.body.from || req.body.WaId || '';
-  const body = req.body.Body || req.body.body || '';
-
-  const { dbg_normalized } = normalizeText(body);
-  const lang = detectLanguage(dbg_normalized) || 'es';
-  const keyword = detectKeyword(dbg_normalized, lang) || '';
-
-  const log = makeLog({ from, body, normalized: dbg_normalized, keyword, lang });
-  writeLog({ route: '/webhook/whatsapp', ...log });
-
-  let text = '';
-  if (!keyword) {
-    text = REPLIES[lang]?.saludo ?? REPLIES.es.saludo;
-  } else {
-    const main = replyFor(keyword, lang);
-    const cierre = REPLIES[lang]?.cierre ?? REPLIES.es.cierre;
-    text = `${main}\n\n${cierre}`;
-  }
-
-  const looksLikeTwilio = typeof req.body.Body === 'string' || typeof req.body.WaId === 'string';
-  if (looksLikeTwilio) {
-    const safe = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
-    res.set('Content-Type', 'application/xml');
-    return res.status(200).send(xml);
-  }
-  return res.json({ ok: true, reply: text, debug: log });
-});
-
-app.post('/api/bookings', async (req, res) => {
-  try {
-    const { to, name, address, service, whenISO, lang, previewText } = req.body;
-    if (!to || !service || !whenISO) {
-      return res.status(400).json({ ok:false, error:'Missing to/service/whenISO' });
-    }
-
-    let langFinal = lang;
-    if (!langFinal && previewText) {
-      const { dbg_normalized } = normalizeText(previewText);
-      langFinal = detectLanguage(dbg_normalized);
-    }
-    if (!langFinal) langFinal = 'es';
-
-    const start = dayjs(whenISO);
-    const slotLabel = start.format('h:mm A');
-    const dateLabel = start.format('YYYY-MM-DD');
-
-    scheduleAllForBooking({
-      to,
-      lang: langFinal,
-      whenISO,
-      service,
-      name: name || 'Cliente',
-      address: address || 'por confirmar',
-      slotLabel,
-      dateLabel,
-      durationMin: 60
-    });
-
-    return res.json({ ok:true, scheduled:true });
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ ok:false, error:'internal' });
-  }
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`DestapesPR bot running on http://localhost:${PORT}`));
+
+// ===== MARCA / VERSIÓN =====
+const TAG = '[[MENU-V2]]';
+app.get('/__version', (_req, res) => res.json({ ok: true, tag: TAG }));
+
+// ===== ENLACE DE CITA (elige uno) =====
+const LINK_CITA = 'https://wa.me/17879220068?text=Quiero%20agendar%20una%20cita';
+// const LINK_CITA = 'https://calendly.com/destapespr/cita';
+
+// ===== MENÚ PRINCIPAL (compatible con WhatsApp) =====
+const MAIN_MENU =
+`${TAG} Bienvenido a DestapesPR
+
+Escribe el número o la palabra del servicio que necesitas:
+
+1 - Destape (drenajes o tuberías tapadas)
+2 - Fuga (fugas de agua)
+3 - Cámara (inspección con cámara)
+4 - Calentador (gas o eléctrico)
+5 - Otro (otro tipo de servicio)
+
+📅 Agendar cita: ${LINK_CITA}`;
+
+// ===== RESPUESTAS POR OPCIÓN =====
+const RESPUESTAS = {
+  destape:
+`${TAG} Perfecto. ¿En qué área estás (municipio o sector)?
+Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).
+📅 Cita: ${LINK_CITA}`,
+
+  fuga:
+`${TAG} Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?
+📅 Cita: ${LINK_CITA}`,
+
+  camara:
+`${TAG} Hacemos inspección con cámara. ¿En qué área la necesitas (baño, cocina, línea principal)?
+📅 Cita: ${LINK_CITA}`,
+
+  calentador:
+`${TAG} Revisamos calentadores eléctricos o de gas. ¿Qué tipo tienes y qué problema notas?
+📅 Cita: ${LINK_CITA}`,
+
+  otro:
+`${TAG} Cuéntame brevemente qué servicio necesitas y en qué área estás.
+📅 Cita: ${LINK_CITA}`
+};
+
+// ===== MAPEOS NUMÉRICOS =====
+const OPCIONES = { '1': 'destape', '2': 'fuga', '3': 'camara', '4': 'calentador', '5': 'otro' };
+
+// ===== ROOT =====
+app.get('/', (_req, res) => res.send(`${TAG} DestapesPR Bot activo ✅`));
+
+// ===== WEBHOOK WHATSAPP =====
+app.post('/webhook/whatsapp', (req, res) => {
+  // Log para verificar qué está llegando desde Twilio en Render
+  console.log('[INCOMING]', {
+    ct: req.headers['content-type'],
+    url: req.originalUrl,
+    body: req.body
+  });
+
+  const body = (req.body.Body || req.body.body || '').toLowerCase().trim();
+  let reply;
+
+  if (['hola', 'buenas', 'hi', 'menu', 'start', 'servicio'].includes(body) || !body) {
+    reply = MAIN_MENU;
+  } else if (OPCIONES[body]) {
+    reply = RESPUESTAS[OPCIONES[body]];
+  } else if (RESPUESTAS[body]) {
+    reply = RESPUESTAS[body];
+  } else {
+    reply = `${TAG} No entendí tu mensaje. Escribe el número o la palabra de una opción:\n\n${MAIN_MENU}`;
+  }
+
+  // Respuesta Twilio XML
+  const safe = String(reply).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
+  res.set('Content-Type', 'application/xml');
+  res.send(xml);
+});
+
+// ===== START =====
+app.listen(PORT, () => console.log(`💬 DestapesPR bot corriendo en http://localhost:${PORT}`));
