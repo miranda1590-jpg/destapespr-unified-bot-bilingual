@@ -1,48 +1,52 @@
-cat > src/replies.js <<'EOF'
-import { detectLanguage, detectIntent, normalizeText } from './keywords.js';
+// src/replies.js
 
-export function replyFor(body, { from } = {}) {
-  const text = normalizeText(body || '');
-  const lang = detectLanguage(text);        // 'es' o 'en' (pero responderemos en ES)
-  const intent = detectIntent(text);        // 'destape' | 'fuga' | 'camara' | 'cita' | 'otros'
-
-  // Solo ES por ahora (mensajes profesionales y con continuidad)
-  if (intent === 'destape') {
-    return [
-      'Entendido 👍. Necesitas un **destape**.',
-      '¿La tubería tapada es del **inodoro**, **fregadero**, **lavamanos**, **tubería principal** o es **pluvial**?',
-      'Si puedes, envía una breve descripción (p. ej., “retroceso en el inodoro” o “fregadero tarda en bajar”).'
-    ].join(' ');
+// Mensajes de saludo/cierre por idioma
+export const REPLIES = {
+  es: {
+    saludo:
+      "¡Hola! 👋 Soy el asistente de DestapesPR. ¿En qué podemos ayudarte hoy?",
+    cierre:
+      "Puedo ayudarte con destapes, fugas, cámara de inspección y citas. Cuéntame brevemente el problema y tu zona para orientarte y darte tiempo estimado."
+  },
+  en: {
+    saludo:
+      "Hi! 👋 I'm DestapesPR’s assistant. How can I help you today?",
+    cierre:
+      "I can help with drain cleaning, leaks, camera inspections and scheduling. Tell me briefly the issue and your area for an ETA."
   }
+};
 
-  if (intent === 'fuga') {
-    return [
-      'Gracias por avisar 💧. Parece una **fuga**.',
-      '¿Notas **goteo constante**, **charco**, olor, o sube el contador de agua?',
-      'Indica el área (baño, cocina, exterior) y si ya cerraste la llave principal.'
-    ].join(' ');
+// Respuestas por intención (plantillas)
+const TEMPLATES = {
+  es: {
+    fuga:
+      "💧 Fuga de agua: Localizamos y reparamos fugas visibles y ocultas. ¿Dónde notas la humedad o goteo y desde cuándo ocurre? Compárteme tu zona para estimar tiempo de llegada.",
+    obstruccion:
+      "🌀 Destape de tuberías: Trabajamos fregaderos, inodoros, duchas y línea principal. Para cotizar rápido dime: zona (municipio/sector) y dónde está el tapón.",
+    drenaje:
+      "🧰 Drenaje: ¿es cocina, baño o pluvial? Podemos evaluar con equipo profesional y, si hace falta, inspección con cámara.",
+    camara:
+      "📹 Cámara de inspección: Diagnóstico con video para tuberías y drenajes. ¿En qué línea necesitas inspección y en qué área estás?",
+    calentador:
+      "🔥 Calentador: Revisamos seguridad, mezcla y fugas. ¿Es tanque o instantáneo? ¿Gas o eléctrico? ¿Dónde está instalado?",
+    default: "¡Gracias por escribir a DestapesPR!"
+  },
+  // Si detectas 'en', puedes personalizar más tarde. Por ahora usa defaults en inglés.
+  en: {
+    leak:
+      "💧 Water leak: we locate and repair visible/hidden leaks. Where do you see moisture or dripping, and since when? Share your area for ETA.",
+    clog:
+      "🌀 Drain cleaning: kitchen/bath/toilet/main line. Tell me your area (city/sector) and where the clog is.",
+    camera:
+      "📹 Camera inspection: video diagnostics for pipes and drains. Which line and what area?",
+    heater:
+      "🔥 Water heater: safety, mixing and leaks. Tank or tankless? Gas or electric?",
+    default: "Thanks for contacting DestapesPR!"
   }
+};
 
-  if (intent === 'camara') {
-    return [
-      'Perfecto 👀. Podemos hacer **inspección con cámara** para localizar obstrucciones o roturas.',
-      '¿En qué línea necesitas inspección (principal, baño, cocina, pluvial) y qué síntomas presentas?',
-      'Así definimos el punto de acceso y el alcance.'
-    ].join(' ');
-  }
-
-  if (intent === 'cita') {
-    return [
-      'Claro 📅. Podemos **agendar una visita técnica**.',
-      'Reserva aquí: https://calendly.com/destapespr/visita-tecnica-destapespr',
-      'Si prefieres, dime **día** y **franja** (mañana/tarde) y te la agendo manualmente.'
-    ].join(' ');
-  }
-
-  // otros / saludo
-  return [
-    '¡Hola! 👋 Soy el asistente de DestapesPR. ¿En qué podemos ayudarte hoy?',
-    'Puedo ayudarte con **destape**, **fuga**, **inspección con cámara** o **agendar una cita**.'
-  ].join(' ');
+// Devuelve la plantilla según keyword e idioma (fallbacks a ES)
+export function replyFor(keyword, lang = 'es') {
+  const pack = TEMPLATES[lang] ?? TEMPLATES.es;
+  return pack[keyword] ?? pack.default;
 }
-EOF 
