@@ -3,23 +3,23 @@ import express from 'express';
 import morgan from 'morgan';
 
 const app = express();
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); // Twilio usa x-www-form-urlencoded
 app.use(express.json());
 app.use(morgan('dev'));
 
 const PORT = process.env.PORT || 3000;
 
-// ===== MARCA ÚNICA / VERSION =====
+// ===== MARCA / VERSIÓN =====
 const TAG = '[[MENU-V2]]';
 app.get('/__version', (_req, res) => res.json({ ok: true, tag: TAG }));
 
-// ===== ENLACE DE CITA =====
+// ===== ENLACE DE CITA (elige uno) =====
 const LINK_CITA = 'https://wa.me/17879220068?text=Quiero%20agendar%20una%20cita';
 // const LINK_CITA = 'https://calendly.com/destapespr/cita';
 
-// ===== MENÚ PRINCIPAL (texto plano, WhatsApp-friendly) =====
+// ===== MENÚ PRINCIPAL (compatible con WhatsApp) =====
 const MAIN_MENU =
-`${TAG} 👋 Bienvenido a DestapesPR
+`${TAG} Bienvenido a DestapesPR
 
 Escribe el número o la palabra del servicio que necesitas:
 
@@ -29,9 +29,9 @@ Escribe el número o la palabra del servicio que necesitas:
 4 - Calentador (gas o eléctrico)
 5 - Otro (otro tipo de servicio)
 
-📅 Para agendar cita: ${LINK_CITA}`;
+📅 Agendar cita: ${LINK_CITA}`;
 
-// ===== RESPUESTAS =====
+// ===== RESPUESTAS POR OPCIÓN =====
 const RESPUESTAS = {
   destape:
 `${TAG} Perfecto. ¿En qué área estás (municipio o sector)?
@@ -55,11 +55,15 @@ Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).
 📅 Cita: ${LINK_CITA}`
 };
 
+// ===== MAPEOS NUMÉRICOS =====
 const OPCIONES = { '1': 'destape', '2': 'fuga', '3': 'camara', '4': 'calentador', '5': 'otro' };
 
-// ===== WEBHOOK =====
+// ===== ROOT =====
+app.get('/', (_req, res) => res.send(`${TAG} DestapesPR Bot activo ✅`));
+
+// ===== WEBHOOK WHATSAPP =====
 app.post('/webhook/whatsapp', (req, res) => {
-  // Log claro para Render (para ver qué llega realmente desde Twilio)
+  // Log para verificar qué está llegando desde Twilio en Render
   console.log('[INCOMING]', {
     ct: req.headers['content-type'],
     url: req.originalUrl,
@@ -79,11 +83,12 @@ app.post('/webhook/whatsapp', (req, res) => {
     reply = `${TAG} No entendí tu mensaje. Escribe el número o la palabra de una opción:\n\n${MAIN_MENU}`;
   }
 
-  const safe = String(reply).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Respuesta Twilio XML
+  const safe = String(reply).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
   res.set('Content-Type', 'application/xml');
   res.send(xml);
 });
 
-app.get('/', (_req, res) => res.send(`${TAG} DestapesPR Bot activo ✅`));
+// ===== START =====
 app.listen(PORT, () => console.log(`💬 DestapesPR bot corriendo en http://localhost:${PORT}`));
