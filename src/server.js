@@ -104,13 +104,43 @@ app.get('/__diag', (_req, res) => {
   res.json({ ok: true, tag: TAG, counts });
 });
 
-// ======= SQLite =======
+
+// ======= SQLite con migración automática =======
 let db;
-const SESSION_TTL_MS = 48 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 48 * 60 * 60 * 1000; // 48h
+
+async function ensureSessionsSchema(db) {
+  const cols = await db.all(`PRAGMA table_info(sessions);`);
+  const names = new Set((cols || []).map(c => c.name));
+
+  if (!cols || cols.length === 0) {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        from_number TEXT PRIMARY KEY,
+        last_choice TEXT,
+        awaiting_details INTEGER DEFAULT 0,
+        details TEXT,
+        last_active INTEGER
+      );
+    `);
+    return;
+  }
+
+  const pending = [];
+  if (!names.has('last_choice')) pending.push(`ALTER TABLE sessions ADD COLUMN last_choice TEXT;`);
+  if (!names.has('awaiting_details')) pending.push(`ALTER TABLE sessions ADD COLUMN awaiting_details INTEGER DEFAULT 0;`);
+  if (!names.has('details')) pending.push(`ALTER TABLE sessions ADD COLUMN details TEXT;`);
+  if (!names.has('last_active')) pending.push(`ALTER TABLE sessions ADD COLUMN last_active INTEGER;`);
+
+  for (const sql of pending) {
+    try { await db.exec(sql); } catch (e) { console.error('Migration step failed:', sql, e.message); }
+  }
+}
 
 async function initDB() {
   if (db) return db;
   db = await open({ filename: './sessions.db', driver: sqlite3.Database });
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       from_number TEXT PRIMARY KEY,
@@ -120,16 +150,29 @@ async function initDB() {
       last_active INTEGER
     );
   `);
-  await db.run('DELETE FROM sessions WHERE last_active < ?', Date.now() - SESSION_TTL_MS);
-  return db;
-}
 
-async function getSession(from) {
-  return await db.get('SELECT * FROM sessions WHERE from_number = ?', from);
-}
+  await ensureSessionsSchema(db);
+  await db.run('DELETE FROM sessions WHERE last_active < ?', Date.now() - SESSION_TTL_MS);
+
+  if (process.env.FORCE_DROP_SESSIONS === '1') {
+    console.warn('[DB] Dropping sessions table due to FORCE_DROP_SESSIONS=1');
+    await db.exec('DROP TABLE IF EXISTS sessions;');
+    await db.exec(`
+      CREATE TABLE sessions (
+        from_number TEXT PRIMARY KEY,
+        last_choice TEXT,
+        awaiting_details INTEGER DEFAULT 0,
+        details TEXT,
+        last_active INTEGER
+      );
+    `);
+  }
+
+  return db;
+} 
 
 async function upsertSession(from, patch) {
-  const prev = (await getSession(from)) || {};
+  const prev = (await db.get('SELECT * FROM sessions WHERE from_number = ?', from)) || {};
   const now = Date.now();
   const next = {
     last_choice: patch.last_choice ?? prev.last_choice ?? null,
