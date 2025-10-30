@@ -11,21 +11,22 @@ app.use(morgan('dev'));
 
 const PORT = process.env.PORT || 3000;
 
-// Marca actual
-const TAG = '[[KW-TEST1]]';
+// === SELLO ÚNICO PARA VER EN WHATSAPP ===
+const TAG = '[[V3.2-2025-10-30-07:15]]';
 
-// ======= VERSION =======
-app.get('/__version', (_req, res) => res.json({ ok: true, tag: TAG }));
-
-// ======= CONFIGURACIÓN GENERAL =======
 const LINK_CITA = 'https://wa.me/17879220068?text=Quiero%20agendar%20una%20cita';
+
+const WELCOME = `¡Hola! 👋 Soy el asistente de **DestapesPR**.
+Te ayudo a coordinar *destapes, fugas, cámara de inspección y calentadores* en el área metro, centro-este y parte del sur (incluye Ponce).`;
+
 const CIERRE = `
 ✅ Próximamente nos estaremos comunicando.
 Gracias por su patrocinio.
 — DestapesPR`;
 
-const MAIN_MENU =
-`${TAG} Bienvenido a DestapesPR
+const MAIN_MENU = `${WELCOME}
+
+${TAG} **Menú principal**
 
 Escribe el número o la palabra del servicio que necesitas:
 
@@ -39,23 +40,47 @@ Escribe el número o la palabra del servicio que necesitas:
 
 Comandos: "inicio", "menu", "volver" para regresar al menú.`;
 
+// Cada respuesta ya pide nombre, número y horario
 const RESPUESTAS = {
-  destape: `${TAG} Perfecto. ¿En qué área estás (municipio o sector)?
+  destape: `${WELCOME}
+
+${TAG} Perfecto. ¿En qué área estás (municipio o sector)?
 Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).
+Por favor incluye:
+- Tu *nombre completo*
+- *Número* de contacto (787, 939 o EE. UU.)
+- *Horario* preferido para comunicarnos
 📅 Cita: ${LINK_CITA}${CIERRE}`,
-  fuga: `${TAG} Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?
+
+  fuga: `${WELCOME}
+
+${TAG} Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?
+Incluye tu *nombre*, *número* y *horario preferido*.
 📅 Cita: ${LINK_CITA}${CIERRE}`,
-  camara: `${TAG} Realizamos inspección con cámara. ¿En qué área la necesitas (baño, cocina, línea principal)?
+
+  camara: `${WELCOME}
+
+${TAG} Realizamos inspección con cámara. ¿En qué área la necesitas (baño, cocina, línea principal)?
+Incluye tu *nombre*, *número* y *horario preferido*.
 📅 Cita: ${LINK_CITA}${CIERRE}`,
-  calentador: `${TAG} Revisamos calentadores eléctricos o de gas. ¿Qué tipo tienes y qué problema notas?
+
+  calentador: `${WELCOME}
+
+${TAG} Revisamos calentadores eléctricos o de gas. ¿Qué tipo tienes y qué problema notas?
+Incluye tu *nombre*, *número* y *horario preferido*.
 📅 Cita: ${LINK_CITA}${CIERRE}`,
-  otro: `${TAG} Cuéntame brevemente qué servicio necesitas y en qué área estás.
+
+  otro: `${WELCOME}
+
+${TAG} Cuéntame brevemente qué servicio necesitas y en qué área estás.
+Incluye tu *nombre*, *número* y *horario preferido*.
 📅 Cita: ${LINK_CITA}${CIERRE}`
 };
 
+// === Opciones rápidas ===
 const OPCIONES = { '1': 'destape', '2': 'fuga', '3': 'camara', '4': 'calentador', '5': 'otro' };
 
-// ======= MATCHING =======
+// === Normalización ===
 function norm(s) {
   return String(s || '')
     .toLowerCase()
@@ -64,16 +89,13 @@ function norm(s) {
     .trim();
 }
 
+// === Palabras clave ===
 const KEYWORDS = {
-  destape: ['destape','tapon','tapones','tapada','trancada','obstruccion','obstrucciones','drenaje','desague','desagüe',
-    'fregadero','lavaplatos','inodoro','sanitario','toilet','ducha','lavamanos','banera','bañera','principal',
-    'linea principal','alcantarillado','pluvial','cloaca','trampa','sifon','sifón'],
-  fuga: ['fuga','salidero','goteo','goteando','humedad','filtracion','filtración','escapes','escape','charco'],
-  camara: ['camara','cámara','inspeccion','inspección','video inspeccion','video','endoscopia','ver tuberia','ver tubería',
-    'localizar','localizacion','localización'],
-  calentador: ['calentador','boiler','heater','agua caliente','termo','termotanque','gas','electrico','eléctrico','resistencia',
-    'piloto','ignicion','ignición'],
-  otro: ['otro','otros','servicio','ayuda','consulta','cotizacion','cotización','presupuesto','visita']
+  destape: ['destape','tapon','tapada','obstruccion','drenaje','fregadero','inodoro','ducha','banera','bañera','principal','cloaca'],
+  fuga: ['fuga','salidero','goteo','humedad','filtracion','filtración','escape','charco'],
+  camara: ['camara','cámara','inspeccion','inspección','video','endoscopia','tuberia','tubería','ver tuberia','ver tubería'],
+  calentador: ['calentador','boiler','heater','agua caliente','gas','electrico','eléctrico'],
+  otro: ['otro','otros','servicio','ayuda','cotizacion','cotización','presupuesto']
 };
 
 function matchChoice(bodyRaw) {
@@ -86,61 +108,13 @@ function matchChoice(bodyRaw) {
   return null;
 }
 
-// ======= ENDPOINTS DE DIAGNÓSTICO =======
-app.get('/__detect', (req, res) => {
-  const q = String(req.query.q || '');
-  const n = norm(q);
-  const detected = matchChoice(q);
-  res.json({ ok: true, tag: TAG, q, norm: n, detected });
-});
-
-app.get('/__diag', (_req, res) => {
-  const counts = {};
-  counts.destape = KEYWORDS?.destape?.length ?? -1;
-  counts.fuga = KEYWORDS?.fuga?.length ?? -1;
-  counts.camara = KEYWORDS?.camara?.length ?? -1;
-  counts.calentador = KEYWORDS?.calentador?.length ?? -1;
-  counts.otro = KEYWORDS?.otro?.length ?? -1;
-  res.json({ ok: true, tag: TAG, counts });
-});
-
-
-// ======= SQLite con migración automática =======
+// === SQLite (sesiones) ===
 let db;
-const SESSION_TTL_MS = 48 * 60 * 60 * 1000; // 48h
-
-async function ensureSessionsSchema(db) {
-  const cols = await db.all(`PRAGMA table_info(sessions);`);
-  const names = new Set((cols || []).map(c => c.name));
-
-  if (!cols || cols.length === 0) {
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        from_number TEXT PRIMARY KEY,
-        last_choice TEXT,
-        awaiting_details INTEGER DEFAULT 0,
-        details TEXT,
-        last_active INTEGER
-      );
-    `);
-    return;
-  }
-
-  const pending = [];
-  if (!names.has('last_choice')) pending.push(`ALTER TABLE sessions ADD COLUMN last_choice TEXT;`);
-  if (!names.has('awaiting_details')) pending.push(`ALTER TABLE sessions ADD COLUMN awaiting_details INTEGER DEFAULT 0;`);
-  if (!names.has('details')) pending.push(`ALTER TABLE sessions ADD COLUMN details TEXT;`);
-  if (!names.has('last_active')) pending.push(`ALTER TABLE sessions ADD COLUMN last_active INTEGER;`);
-
-  for (const sql of pending) {
-    try { await db.exec(sql); } catch (e) { console.error('Migration step failed:', sql, e.message); }
-  }
-}
+const SESSION_TTL_MS = 48 * 60 * 60 * 1000;
 
 async function initDB() {
   if (db) return db;
   db = await open({ filename: './sessions.db', driver: sqlite3.Database });
-
   await db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       from_number TEXT PRIMARY KEY,
@@ -150,29 +124,16 @@ async function initDB() {
       last_active INTEGER
     );
   `);
-
-  await ensureSessionsSchema(db);
   await db.run('DELETE FROM sessions WHERE last_active < ?', Date.now() - SESSION_TTL_MS);
-
-  if (process.env.FORCE_DROP_SESSIONS === '1') {
-    console.warn('[DB] Dropping sessions table due to FORCE_DROP_SESSIONS=1');
-    await db.exec('DROP TABLE IF EXISTS sessions;');
-    await db.exec(`
-      CREATE TABLE sessions (
-        from_number TEXT PRIMARY KEY,
-        last_choice TEXT,
-        awaiting_details INTEGER DEFAULT 0,
-        details TEXT,
-        last_active INTEGER
-      );
-    `);
-  }
-
   return db;
-} 
+}
+
+async function getSession(from) {
+  return await db.get('SELECT * FROM sessions WHERE from_number = ?', from);
+}
 
 async function upsertSession(from, patch) {
-  const prev = (await db.get('SELECT * FROM sessions WHERE from_number = ?', from)) || {};
+  const prev = (await getSession(from)) || {};
   const now = Date.now();
   const next = {
     last_choice: patch.last_choice ?? prev.last_choice ?? null,
@@ -196,7 +157,18 @@ async function clearSession(from) {
   await db.run('DELETE FROM sessions WHERE from_number = ?', from);
 }
 
-// ======= WEBHOOK =======
+// === Helper para responder Twilio ===
+function sendTwilioXML(res, text) {
+  const safe = String(text)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
+  res.set('Content-Type', 'application/xml');
+  return res.send(xml);
+}
+
+// === Webhook (flujo principal) ===
 app.post('/webhook/whatsapp', async (req, res) => {
   await initDB();
 
@@ -204,56 +176,41 @@ app.post('/webhook/whatsapp', async (req, res) => {
   const bodyRaw = (req.body.Body || req.body.body || '').toString();
   const body = norm(bodyRaw);
 
-  let reply = '';
-
+  // Menu / bienvenida
   if (!body || ['inicio','menu','volver','start','comenzar','hola','buenas'].includes(body)) {
     await clearSession(from);
-    reply = MAIN_MENU;
-    return sendTwilioXML(res, reply);
+    return sendTwilioXML(res, MAIN_MENU);
   }
 
+  // Selección de servicio
   const detected = matchChoice(bodyRaw);
   if (detected) {
     await upsertSession(from, { last_choice: detected, awaiting_details: 1, details: null });
-    reply = `${RESPUESTAS[detected]}\n\n(Escribe "volver" para regresar al menú)`;
-    return sendTwilioXML(res, reply);
+    const out = `${RESPUESTAS[detected]}\n\n(Escribe "volver" para regresar al menú)`;
+    return sendTwilioXML(res, out);
   }
 
-  if (['cita','agendar','agenda','agendame','reservar'].includes(body)) {
-    const s = await upsertSession(from, {});
-    const extra = s?.last_choice ? `Tu servicio seleccionado: ${s.last_choice}. ` : '';
-    reply = `${TAG} Perfecto. ${extra}Abre este enlace para coordinar:\n${LINK_CITA}\n\nSi necesitas volver al menú escribe "volver".`;
-    return sendTwilioXML(res, reply);
-  }
-
+  // Captura de detalles (respuesta libre después de elegir opción)
   const s = await getSession(from);
   if (s?.last_choice && s?.awaiting_details) {
     await upsertSession(from, { details: bodyRaw, awaiting_details: 0 });
-    reply =
+    const out =
 `${TAG} Gracias. Guardé tus detalles para *${s.last_choice}*:
 "${bodyRaw}"
 
-¿Deseas agendar ahora? Abre este enlace:
-${LINK_CITA}
+✅ Hemos recibido tu solicitud. Un representante de **DestapesPR** te contactará pronto.
 
-Para cambiar de servicio o corregir datos, escribe "volver".${CIERRE}`;
-    return sendTwilioXML(res, reply);
+${CIERRE}`;
+    return sendTwilioXML(res, out);
   }
 
-  reply = `No entendí tu mensaje.
-Escribe el número o la palabra de una opción:
-
-${MAIN_MENU}`;
-  return sendTwilioXML(res, reply);
+  // Fallback
+  const fallback = `No entendí tu mensaje. Intenta nuevamente.\n\n${MAIN_MENU}`;
+  return sendTwilioXML(res, fallback);
 });
 
-function sendTwilioXML(res, text) {
-  const safe = String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
-  res.set('Content-Type', 'application/xml');
-  return res.send(xml);
-}
-
+// Health/Version
+app.get('/__version', (_req, res) => res.json({ ok: true, tag: TAG }));
 app.get('/', (_req, res) => res.send(`${TAG} DestapesPR Bot activo ✅`));
 
 app.listen(PORT, () => console.log(`💬 DestapesPR bot corriendo en http://localhost:${PORT}`));
