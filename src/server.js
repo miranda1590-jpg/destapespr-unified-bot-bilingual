@@ -1,5 +1,5 @@
 // =====================
-// DestapesPR — server.js
+// DestapesPR — server.js (sin link de cita y con opción 6)
 // =====================
 
 import 'dotenv/config';
@@ -18,20 +18,19 @@ app.use(morgan('dev'));
 
 const PORT = process.env.PORT || 3000;
 
-// Sello visible en todas las respuestas
+// Sello visible solo para diagnóstico (/__version), no se muestra al cliente
 const TAG = '[[FORCE-20251030-DEPLOY]]';
 
 // ---------------------
 // Textos / Menú
 // ---------------------
-const LINK_CITA = 'https://wa.me/17879220068?text=Quiero%20agendar%20una%20cita';
 const CIERRE = `
 ✅ Próximamente nos estaremos comunicando.
 Gracias por su patrocinio.
 — DestapesPR`;
 
 const MAIN_MENU =
-`${TAG} Bienvenido a DestapesPR
+`¡Bienvenido/a a DestapesPR! 👋
 
 Escribe el número o la palabra del servicio que necesitas:
 
@@ -40,26 +39,21 @@ Escribe el número o la palabra del servicio que necesitas:
 3 - Cámara (inspección con cámara)
 4 - Calentador (gas o eléctrico)
 5 - Otro (otro tipo de servicio)
-
-📅 Agendar cita: ${LINK_CITA}
+6 - Cita (agendar una visita)
 
 Comandos: "inicio", "menu", "volver" para regresar al menú.`;
 
 const RESPUESTAS = {
-  destape: `${TAG} Perfecto. ¿En qué área estás (municipio o sector)?
-Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).
-📅 Cita: ${LINK_CITA}${CIERRE}`,
-  fuga: `${TAG} Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?
-📅 Cita: ${LINK_CITA}${CIERRE}`,
-  camara: `${TAG} Realizamos inspección con cámara. ¿En qué área la necesitas (baño, cocina, línea principal)?
-📅 Cita: ${LINK_CITA}${CIERRE}`,
-  calentador: `${TAG} Revisamos calentadores eléctricos o de gas. ¿Qué tipo tienes y qué problema notas?
-📅 Cita: ${LINK_CITA}${CIERRE}`,
-  otro: `${TAG} Cuéntame brevemente qué servicio necesitas y en qué área estás.
-📅 Cita: ${LINK_CITA}${CIERRE}`
+  destape: `Perfecto. ¿En qué área estás (municipio o sector)?
+Luego cuéntame qué línea está tapada (fregadero, inodoro, principal, etc.).${CIERRE}`,
+  fuga: `Entendido. ¿Dónde notas la fuga o humedad? ¿Es dentro o fuera de la propiedad?${CIERRE}`,
+  camara: `Realizamos inspección con cámara. ¿En qué área la necesitas (baño, cocina, línea principal)?${CIERRE}`,
+  calentador: `Revisamos calentadores eléctricos o de gas. ¿Qué tipo tienes y qué problema notas?${CIERRE}`,
+  otro: `Cuéntame brevemente qué servicio necesitas y en qué área estás.${CIERRE}`,
+  cita: `Vamos a coordinar tu cita. Por favor indícame zona (municipio/sector), el servicio que necesitas y disponibilidad.${CIERRE}`
 };
 
-const OPCIONES = { '1': 'destape', '2': 'fuga', '3': 'camara', '4': 'calentador', '5': 'otro' };
+const OPCIONES = { '1': 'destape', '2': 'fuga', '3': 'camara', '4': 'calentador', '5': 'otro', '6': 'cita' };
 
 // ---------------------
 // Normalización / Matching
@@ -81,13 +75,15 @@ const KEYWORDS = {
   fuga: ['fuga','salidero','goteo','goteando','humedad','filtracion','filtración','escapes','escape','charco'],
   camara: ['camara','cámara','inspeccion','inspección','video inspeccion','video','endoscopia','ver tuberia','ver tubería','localizar','localizacion','localización'],
   calentador: ['calentador','boiler','heater','agua caliente','termo','termotanque','gas','electrico','eléctrico','resistencia','piloto','ignicion','ignición'],
-  otro: ['otro','otros','servicio','ayuda','consulta','cotizacion','cotización','presupuesto','visita']
+  otro: ['otro','otros','servicio','ayuda','consulta','cotizacion','cotización','presupuesto','visita'],
+  cita: ['cita','agendar','agenda','agendame','agéndame','reservar','reserva','appointment','schedule']
 };
 
 function matchChoice(bodyRaw) {
   const b = norm(bodyRaw);
   if (OPCIONES[b]) return OPCIONES[b];
-  if (['destape','fuga','camara','calentador','otro'].includes(b)) return b;
+  const keys = ['destape','fuga','camara','calentador','otro','cita'];
+  if (keys.includes(b)) return b;
   for (const [choice, arr] of Object.entries(KEYWORDS)) {
     if (arr.some(k => b.includes(k))) return choice;
   }
@@ -168,20 +164,37 @@ async function clearSession(from) {
 // Helpers
 // ---------------------
 function sendTwilioXML(res, text) {
-  // prefijo TAG siempre visible
-  const withTag = `${TAG} ${String(text || '')}`;
-  const safe = withTag.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // No añadimos TAG al mensaje del cliente
+  const safe = String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${safe}</Message></Response>`;
   res.set('Content-Type', 'application/xml');
   return res.send(xml);
 }
 
+// Teléfono a formato E.164 +1 (PR/US)
 function extractPhone(text) {
   const t = String(text || '');
-  // Detecta US + PR (787, 939 y cualquier área válida de EEUU)
   const rx = /(?:\+?1[\s\-.]?)?(?:\(?([2-9]\d{2})\)?[\s\-.]?)(\d{3})[\s\-.]?(\d{4})/;
   const m = t.match(rx);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+  if (!m) return null;
+  return `+1${m[1]}${m[2]}${m[3]}`;
+}
+
+function extractName(text) {
+  const t = String(text || '').trim();
+  const m =
+    t.match(/me\s+llamo\s+([a-záéíóúñü\s']{3,40})/i) ||
+    t.match(/\bsoy\s+([a-záéíóúñü\s']{3,40})/i) ||
+    t.match(/nombre\s*[:\-]\s*([a-záéíóúñü\s']{3,40})/i);
+  return m ? m[1].replace(/\s+/g,' ').trim() : null;
+}
+
+function extractTimeWindow(text) {
+  const t = String(text || '');
+  const m =
+    t.match(/(\d{1,2}(:\d{2})?\s?(am|pm)?)\s*[-a]\s*(\d{1,2}(:\d{2})?\s?(am|pm)?)/i) ||
+    t.match(/(\d{1,2}(:\d{2}))\s*[-a]\s*(\d{1,2}(:\d{2}))/i);
+  return m ? `${m[1]} - ${m[4]}`.replace(/\s+/g,' ').trim() : null;
 }
 
 // ---------------------
@@ -203,6 +216,7 @@ app.get('/__diag', (_req, res) => {
   counts.camara = KEYWORDS?.camara?.length ?? -1;
   counts.calentador = KEYWORDS?.calentador?.length ?? -1;
   counts.otro = KEYWORDS?.otro?.length ?? -1;
+  counts.cita = KEYWORDS?.cita?.length ?? -1;
   res.json({ ok: true, tag: TAG, counts });
 });
 
@@ -222,20 +236,34 @@ app.post('/webhook/whatsapp', async (req, res) => {
     return sendTwilioXML(res, MAIN_MENU);
   }
 
-  // 2) Si la sesión espera detalles -> capturamos primero
+  // 2) Si la sesión espera detalles -> capturamos primero (con validación)
   const s0 = await getSession(from);
   if (s0?.last_choice && s0?.awaiting_details) {
     const phone = extractPhone(bodyRaw);
+    const name = extractName(bodyRaw);
+    const slot = extractTimeWindow(bodyRaw);
+
+    const missing = [];
+    if (!name)  missing.push('👤 *Nombre*');
+    if (!phone) missing.push('📞 *Número (787/939 o EE.UU.)*');
+    if (!slot)  missing.push('⏰ *Horario disponible*');
+
+    if (missing.length) {
+      const msg = `Casi listo. Me falta:\n- ${missing.join('\n- ')}\n\nEjemplo:\n"Me llamo Juan Pérez, 787-555-1212, 2pm-5pm en Cayey"\n\n(Escribe "volver" para regresar al menú)`;
+      return sendTwilioXML(res, msg);
+    }
+
     await upsertSession(from, { details: bodyRaw, awaiting_details: 0 });
     const resumen =
-`${TAG} Gracias. Guardé tus detalles para *${s0.last_choice}*:
+`¡Gracias! Recibimos tu solicitud para *${s0.last_choice}*.
 
-📝 Detalle recibido:
-"${bodyRaw}"
+✅ Datos:
+• Nombre: ${name}
+• Teléfono: ${phone}
+• Horario: ${slot}
+• Detalle: “${bodyRaw}”
 
-${phone ? `📞 Teléfono detectado: ${phone}\n` : ''}✅ Hemos recibido tu solicitud. Un representante de **DestapesPR** te contactará pronto.
-
-${CIERRE}`;
+Nos comunicaremos pronto para confirmar.${CIERRE}`;
     return sendTwilioXML(res, resumen);
   }
 
@@ -243,29 +271,48 @@ ${CIERRE}`;
   const detected = matchChoice(bodyRaw);
   if (detected) {
     await upsertSession(from, { last_choice: detected, awaiting_details: 1, details: null });
-    const out = `${RESPUESTAS[detected]}
+    const out =
+`${RESPUESTAS[detected]}
 
-Por favor incluye:
-👤 Tu nombre completo  
-📞 Tu número de contacto (787 / 939 o EE.UU.)  
-⏰ Horario disponible
+Por favor envía en un solo mensaje:
+👤 *Nombre completo*
+📞 *Número de contacto* (787/939 o EE.UU.)
+⏰ *Horario disponible*
+
+Ejemplo:
+"Me llamo Ana Rivera, 939-555-9999, 10am-1pm en Caguas"
 
 (Escribe "volver" para regresar al menú)`;
     return sendTwilioXML(res, out);
   }
 
-  // 4) Si ya hubo elección previa pero no estaba esperando detalles, tratamos este mensaje como detalle adicional
+  // 4) Si ya hubo elección previa pero no estaba esperando detalles, tratamos este mensaje como detalle adicional (con validación)
   const s = await getSession(from);
   if (s?.last_choice && !s?.awaiting_details) {
     const phone = extractPhone(bodyRaw);
+    const name = extractName(bodyRaw);
+    const slot = extractTimeWindow(bodyRaw);
+
+    const missing = [];
+    if (!name)  missing.push('👤 *Nombre*');
+    if (!phone) missing.push('📞 *Número (787/939 o EE.UU.)*');
+    if (!slot)  missing.push('⏰ *Horario disponible*');
+
+    if (missing.length) {
+      const msg = `Recibí tu mensaje, pero me falta:\n- ${missing.join('\n- ')}\n\nEjemplo:\n"Soy Luis Ortiz, 787-555-1212, 3pm-6pm en Carolina"`;
+      return sendTwilioXML(res, msg);
+    }
+
     await upsertSession(from, { details: bodyRaw });
     const resumen =
-`${TAG} Gracias. Actualicé los detalles para *${s.last_choice}*:
+`Perfecto. Actualicé tus datos para *${s.last_choice}*:
 
-📝 Detalle adicional:
-"${bodyRaw}"
+• Nombre: ${name}
+• Teléfono: ${phone}
+• Horario: ${slot}
+• Detalle: “${bodyRaw}”
 
-${phone ? `📞 Teléfono detectado: ${phone}\n` : ''}✅ Nos comunicaremos en breve. Si deseas cambiar de servicio escribe "volver".${CIERRE}`;
+¡Gracias! Te contactaremos en breve. Si deseas cambiar de servicio escribe "volver".${CIERRE}`;
     return sendTwilioXML(res, resumen);
   }
 
@@ -277,7 +324,7 @@ ${phone ? `📞 Teléfono detectado: ${phone}\n` : ''}✅ Nos comunicaremos en b
 // ---------------------
 // Root & listen
 // ---------------------
-app.get('/', (_req, res) => res.send(`${TAG} DestapesPR Bot activo ✅`));
+app.get('/', (_req, res) => res.send(`DestapesPR Bot activo ✅`));
 
 app.listen(PORT, () => {
   console.log(`💬 DestapesPR bot corriendo en http://localhost:${PORT}`);
